@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live PNR Status</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #f4f4f9; padding: 50px; }
+        .card { background: white; padding: 30px; border-radius: 10px; max-width: 400px; margin: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        input { width: 80%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        button { background: #2575fc; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        #result { margin-top: 20px; text-align: left; background: #eee; padding: 10px; border-radius: 5px; display: none; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Train PNR Checker</h2>
+    <input type="text" id="pnrInput" placeholder="Enter 10-digit PNR">
+    <button onclick="fetchPNR()">Check Status</button>
+    <div id="result"></div>
+</div>
+
+<script>
+    async function fetchPNR() {
+        const pnr = document.getElementById('pnrInput').value.trim();
+        const resultDiv = document.getElementById('result');
+        
+        if (!pnr || pnr.length !== 10) {
+            resultDiv.style.display = "block";
+            resultDiv.innerText = "Please enter a valid 10-digit PNR number.";
+            return;
+        }
+
+        resultDiv.style.display = "block";
+        resultDiv.innerText = "Searching database...";
+
+        try {
+            // Notice the backticks (``) used here to dynamically merge the variable
+            const response = await fetch(`http://127.0.0.1:9000/check-pnr/${pnr}`);
+            
+            if (!response.ok) {
+                resultDiv.innerText = `Error: Server responded with status ${response.status}`;
+                return;
+            }
+
+            const resData = await response.json();
+            
+            if (resData.success && resData.data) {
+                const data = resData.data;
+                
+                // Formatting the output inside the UI
+                let output = `🚆 Train: ${data.trainName} (${data.trainNumber})\n`;
+                output += `📍 Route: ${data.sourceStation} -> ${data.destinationStation}\n`;
+                output += `📅 Date: ${data.dateOfJourney}\n`;
+                output += `📊 Status: ${data.chartStatus}\n\n`;
+                output += `👥 Passenger Status:\n`;
+                
+                data.passengerList.forEach(p => {
+                    output += `• Passenger ${p.passengerSerialNumber}: ${p.currentStatusDetails}\n`;
+                });
+
+                resultDiv.innerText = output;
+            } else {
+                resultDiv.innerText = "API connected, but no data found for this PNR.";
+            }
+        } catch (error) {
+            console.error(error);
+            resultDiv.innerText = "Failed to connect to backend server. Make sure your Python terminal is running!";
+        }
+    }
+</script>
+</body>
+</html>
